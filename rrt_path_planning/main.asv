@@ -1,0 +1,98 @@
+beep off
+
+generate_obstacles % create the robot workspace
+
+N = 100;
+
+all_paths = zeros(N,2); 
+lengths = zeros(2,N);
+vars = zeros(N,1);
+
+p_kf = zeros(N,2*N);
+
+for i = 1:N             % for N trials, find RRT for shortest path to goal region
+    
+    [path, path_length] = RRT(start_state, goal_region, obstacles); 
+    
+    n_nodes = length(path); % find number of steps travelled
+
+    p_final = propagate_KF_path(path,obstacles);
+
+    if i == 1                               % special condition for first path 
+        all_paths(1:n_nodes,i:i+1) = path; 
+        p_kf(1:n_nodes,i:i+1) = p_final;
+    end
+
+    all_paths(1:n_nodes,2*i:2*i+1) = path; % robot poses over the shortest path for each trial
+
+    lengths(1,i) = path_length; % find total lengths and number of of nodes for each trial's path
+    lengths(2,i) = n_nodes;
+
+
+    p_kf(1:n_nodes,2*i:2*i+1)= p_final; % covariance data at each node per path
+    vars(i,1) = sum(p_kf(n_nodes,2*i:2*i+1));
+end
+
+% Shortest Path Length Plot
+[~,dim] = min(lengths(1,:)); % length of shortest path
+n_last = lengths(2,dim);      % number of nodes inside the shortest path
+
+x_short = 2*dim;
+y_short = x_short + 1;
+
+p_short = all_paths(:,x_short:y_short); % path of shortest distance
+
+radii = sqrt(p_kf(:,x_short:y_short)); %P_k Ellipse Value Calculation
+
+plot(p_short(1:n_last,1),p_short(1:n_last,2),'.-k','MarkerSize',20); % plot nodes and edges
+
+for i = 1:n_last                        % plot ellipse for each path node
+    h = ellipse(radii(i,1),radii(i,2),0,p_short(i,1),p_short(i,2),'r');
+end
+
+%Max Uncertainty Plot
+[~,max_unc] = max(sum(p_kf)); %Max Value of Uncertainty
+
+p_max_length = all_paths(:,2*max_unc:2*max_dim+1); %path of max uncertainty
+P_max_end = find(p_max_length(:,2) == 50); %End of path tree
+P_k_max = sqrt(p_final(:,2*max_dim-1:2*max_dim)); %P_k Ellpise Value Calculation
+P_k_max(P_max_end+1:end,:) = []; %Zero Removal
+
+% max_length = max(vars); %Max Value of Uncertainty
+% max_dim = find(sum(p_kf) == max_length); %position of path with max uncertainty
+% p_max_length = all_paths(:,2*max_dim-1:2*max_dim); %path of max uncertainty
+% P_max_end = find(p_max_length(:,2) == 50); %End of path tree
+% P_k_max = sqrt(p_final(:,2*max_dim-1:2*max_dim)); %P_k Ellpise Value Calculation
+% P_k_max(P_max_end+1:end,:) = []; %Zero Removal
+
+%Clear Previous Plot
+delete(h1)
+delete(h_e)
+
+%Plots
+h_e = zeros(1,P_max_end);
+h1 = plot(p_max_length(1:P_max_end,1),p_max_length(1:P_max_end,2),'.-b','MarkerSize',20);
+for i = 1:P_max_end
+    h = ellipse(P_k_max(i,1),P_k_max(i,2),0,p_max_length(i,1),p_max_length(i,2),'r');
+    h_e(1,i) = h;
+end
+
+%Min Uncertainty Plot
+min_length = min(sum(p_kf_data)); %Min Value of Uncertainty
+min_dim = find(sum(p_kf_data) == min_length); %position of path with min uncertainty
+p_min_length = p_data(:,2*min_dim-1:2*min_dim); %path of min uncertainty
+P_min_end = find(p_min_length(:,2) == 50); %End of path tree
+P_k_min = sqrt(p_k_ellipse(:,2*min_dim-1:2*min_dim)); %P_k Ellpise Value Calculation
+P_k_min(P_min_end+1:end,:) = []; %Zero Removal
+
+%Clear Previous Plot
+delete(h1)
+delete(h_e)
+
+%Plots
+h_e = zeros(1,P_min_end);
+h1 = plot(p_min_length(1:P_min_end,1),p_min_length(1:P_min_end,2),'.-b','MarkerSize',20);
+for i = 1:P_min_end
+    h = ellipse(P_k_min(i,1),P_k_min(i,2),0,p_min_length(i,1),p_min_length(i,2),'r');
+    h_e(1,i) = h;
+end

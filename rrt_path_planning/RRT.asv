@@ -1,0 +1,46 @@
+% This function will build the RRT given the start state, goal region,  
+% and obstacles as input. It will return the sequence of states in the
+% path as well as the path's length.
+
+function [path, path_length] = RRT(start_state, goal_region, obstacles)
+    
+    tol = 0.0001;               % tolerance for finding matching elements
+    epsilon = 2;                % growth factor
+    tree = start_state;         % initialize tree with start condition
+    neighbors = [0, 0];
+   
+    path_length = 0;
+     ct = 1;
+    % while robot is not within goal region, pick a random state within the
+    % workspace and find closest neighbors to populate path tree
+    while tree(:,1) < goal_region(1)  
+        
+        rand_state = rand(1,2)*100;   % random state within workspace
+        [neighbors,tree] = extend_RRT(rand_state,tree,obstacles,epsilon,neighbors);  
+    
+    end
+    
+               
+  
+    % find indices of nodes in tree matching the node neighboring the
+    % robots final position in the goal zone
+    path=tree(end,:);                          % initialize with final element
+    match = abs(neighbors(end,:) - tree);   
+    n = find(match < tol);              
+
+    % chain new neighbors to tree until original position is reached
+    while path ~= start_state
+        
+        n = n(1);                       
+        path(ct+1,:) = tree(n,:);       % add neighboring node to the next path element
+        
+        match = abs(neighbors(n,:) - tree);   
+        n = find(match < tol);        % find indices of the next neighboring node
+       
+        path_mag = norm(path(ct+1)-path(ct)); % find magnitude of vector between the current and previous node
+        path_length = path_length + path_mag;   % update path length
+       
+        ct = ct + 1; 
+    end
+
+end
